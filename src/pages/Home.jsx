@@ -59,6 +59,12 @@ const Home = () => {
               >
                 Sample Chat
               </Link>
+              <Link
+                to="/wellness"
+                className="bg-red-600 hover:bg-red-700 text-white p-4 rounded-lg text-center font-medium"
+              >
+                Wellness
+              </Link>
             </div>
           </div>
         </div>
