@@ -6,6 +6,7 @@ import Home from './pages/Home';
 import Chat from './pages/Chat';
 import Posts from './pages/Posts';
 import Journal from './pages/Journal';
+import Wellness from './pages/Wellness';
 import './App.css'
 
 function App() {
@@ -47,6 +48,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Journal />
+                </ProtectedRoute>
+              } 
+            />
+              <Route 
+              path="/wellness" 
+              element={
+                <ProtectedRoute>
+                  <Wellness />
                 </ProtectedRoute>
               } 
             />
