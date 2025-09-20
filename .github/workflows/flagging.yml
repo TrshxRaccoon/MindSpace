@@ -1,0 +1,34 @@
+name: Flagging Unflagged posts
+
+on:
+  schedule:
+    - cron: '0 21 */2 * *'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r flagging/requirements.txt
+
+      - name: Run the summary script
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          SERVICE_ACCOUNT_KEY_JSON: ${{ secrets.SERVICE_ACCOUNT_KEY_JSON }}
+        run: |
+          # The Python script uses a hardcoded path, so we'll create the secret file there.
+          # In a real-world scenario, you might modify the script to read the path from an env variable.
+          mkdir -p /Users/tejasagarwal/Programming/project/ZephyrHack/
+          echo "$SERVICE_ACCOUNT_KEY_JSON" > /Users/tejasagarwal/Programming/project/ZephyrHack/zephyr-hackathon-55ff5-firebase-adminsdk-fbsvc-de7068ee14.json
+          python flagging/main.py
