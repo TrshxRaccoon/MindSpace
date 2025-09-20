@@ -10,6 +10,7 @@ import Journal from './pages/Journal';
 import Wellness from './pages/Wellness';
 import Mentor from './pages/Mentor';
 import Admin from './pages/Admin';
+import AiChat from './pages/AiChat';
 import './App.css'
 
 function App() {
@@ -60,6 +61,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Wellness />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/ai-chat" 
+              element={
+                <ProtectedRoute>
+                  <AiChat />
                 </ProtectedRoute>
               } 
             />

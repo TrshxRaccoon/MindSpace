@@ -8,7 +8,8 @@ import {
   MessageSquare, 
   Heart, 
   LogOut,
-  User
+  User,
+  Bot
 } from 'lucide-react';
 import { Button } from './ui/button';
 import {
@@ -103,6 +104,14 @@ export function AppSidebar() {
                   <Link to="/chat/daily-reflection">
                     <MessageSquare />
                     <span>Daily Chat</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <Link to="/ai-chat">
+                    <Bot />
+                    <span>Chat with AI</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

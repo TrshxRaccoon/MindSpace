@@ -17,7 +17,8 @@ const Login = () => {
   const [isAdminLogin, setIsAdminLogin] = useState(false);
   
   const { 
-    signInWithGoogleSmart,
+    signInWithGoogleAsPeer,
+    signInWithGoogleAsMentor,
     signInWithGoogle, 
     user, 
     loading: authLoading 
@@ -53,26 +54,35 @@ const Login = () => {
     }
   }, [user, authLoading, navigate, from, userType, loginResult, isAdminLogin]);
 
-  const handleSmartGoogleLogin = async () => {
+  const handlePeerLogin = async () => {
     try {
       setError('');
       setLoading(true);
       
-      console.log(`Initiating smart Google login with selected type: ${userType}`);
-      const result = await signInWithGoogleSmart(userType);
+      const result = await signInWithGoogleAsPeer();
       setLoginResult(result);
       setDetectedUserType(result.userType);
       
-      console.log('Smart Google login result:', {
-        userType: result.userType,
-        collection: result.collection,
-        isNewUser: result.isNewUser || false
-      });
-      
-      // Navigation will be handled by useEffect when user state updates
     } catch (error) {
       setError('Failed to sign in with Google. Please try again.');
-      console.error('Smart Google login error:', error);
+      console.error('Google peer login error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMentorLogin = async () => {
+    try {
+      setError('');
+      setLoading(true);
+      
+      const result = await signInWithGoogleAsMentor();
+      setLoginResult(result);
+      setDetectedUserType(result.userType);
+      
+    } catch (error) {
+      setError('Failed to sign in with Google. Please try again.');
+      console.error('Google mentor login error:', error);
     } finally {
       setLoading(false);
     }
@@ -224,10 +234,7 @@ const Login = () => {
             )}
 
             <Button 
-              onClick={() => {
-                setUserType('peer');
-                handleSmartGoogleLogin();
-              }}
+              onClick={handlePeerLogin}
               disabled={loading && userType === 'peer'}
               className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 text-lg mt-6"
             >
@@ -298,10 +305,7 @@ const Login = () => {
             )}
 
             <Button 
-              onClick={() => {
-                setUserType('mentor');
-                handleSmartGoogleLogin();
-              }}
+              onClick={handleMentorLogin}
               disabled={loading && userType === 'mentor'}
               className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 text-lg mt-6"
             >

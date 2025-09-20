@@ -114,65 +114,34 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const signInWithGoogleSmart = async (userType = 'peer') => {
+  const signInWithGoogleAsPeer = async () => {
     try {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
       
-      console.log('Checking user collections for:', user.email);
-      
-      // First check if user exists in users collection
       const userData = await checkUserInCollection(user.email, 'users');
       if (userData) {
-        console.log('User found in users collection, routing to main dashboard');
-        // Also set the userData for the context
+        console.log('User found in users collection. Logging in as peer.');
         await fetchUserData(user.email);
         return { user, userType: 'peer', collection: 'users', data: userData };
       }
       
-      // Then check if user exists in mentors collection
-      const mentorData = await checkUserInCollection(user.email, 'mentors');
-      if (mentorData) {
-        console.log('User found in mentors collection, routing to mentor dashboard');
-        return { user, userType: 'mentor', collection: 'mentors', data: mentorData };
-      }
-      
-      // User doesn't exist in either collection, create based on selected userType
-      console.log(`User not found in any collection. Creating new ${userType} account for:`, user.email);
-      
-      if (userType === 'mentor') {
-        // Create mentor account
-        const mentorData = {
-          email: user.email,
-          displayName: user.displayName,
-          photoURL: user.photoURL,
-          role: 'mentor',
-          createdAt: Timestamp.now(),
-          isActive: true
-        };
-        await setDoc(doc(db, 'mentors', user.email), mentorData);
-        console.log('New mentor account created');
-        return { user, userType: 'mentor', collection: 'mentors', data: mentorData, isNewUser: true };
-      } else {
-        // Create peer account
-        const peerData = {
-          email: user.email,
-          displayName: user.displayName,
-          photoURL: user.photoURL,
-          username: generateRandomUsername(),
-          journal: [],
-          sessions: [],
-          createdAt: Timestamp.now()
-        };
-        await setDoc(doc(db, 'users', user.email), peerData);
-        console.log('New peer account created');
-        // Also set the userData for the context
-        await fetchUserData(user.email);
-        return { user, userType: 'peer', collection: 'users', data: peerData, isNewUser: true };
-      }
-      
+      console.log('New user logging in as peer. Creating peer account.');
+      const peerData = {
+        email: user.email,
+        displayName: user.displayName,
+        photoURL: user.photoURL,
+        username: generateRandomUsername(),
+        journal: [],
+        sessions: [],
+        createdAt: Timestamp.now()
+      };
+      await setDoc(doc(db, 'users', user.email), peerData, { merge: true });
+      await fetchUserData(user.email);
+      return { user, userType: 'peer', collection: 'users', data: peerData, isNewUser: true };
+
     } catch (error) {
-      console.error('Error in smart Google sign in:', error);
+      console.error('Error in Google sign in as peer:', error);
       throw error;
     }
   };
@@ -180,26 +149,29 @@ export const AuthProvider = ({ children }) => {
   const signInWithGoogleAsMentor = async () => {
     try {
       const result = await signInWithPopup(auth, googleProvider);
-      const mentorUser = result.user;
-      
-      // Create mentor document if it doesn't exist
-      const mentorDocRef = doc(db, 'mentors', mentorUser.email);
-      const mentorDoc = await getDoc(mentorDocRef);
-      
-      if (!mentorDoc.exists()) {
-        await setDoc(mentorDocRef, {
-          email: mentorUser.email,
-          displayName: mentorUser.displayName,
-          photoURL: mentorUser.photoURL,
-          role: 'mentor',
-          createdAt: Timestamp.now(),
-          isActive: true
-        });
+      const user = result.user;
+
+      const mentorData = await checkUserInCollection(user.email, 'mentors');
+      if (mentorData) {
+        console.log('User found in mentors collection. Logging in as mentor.');
+        return { user, userType: 'mentor', collection: 'mentors', data: mentorData };
       }
+     
+
+      console.log('New user. Creating mentor account.');
+      const newMentorData = {
+        email: user.email,
+        displayName: user.displayName,
+        photoURL: user.photoURL,
+        role: 'mentor',
+        createdAt: Timestamp.now(),
+        isActive: true
+      };
+      await setDoc(doc(db, 'mentors', user.email), newMentorData);
+      return { user, userType: 'mentor', collection: 'mentors', data: newMentorData, isNewUser: true };
       
-      return mentorUser;
     } catch (error) {
-      console.error('Error signing in as mentor with Google:', error);
+      console.error('Error in Google sign in as mentor:', error);
       throw error;
     }
   };
@@ -219,6 +191,7 @@ export const AuthProvider = ({ children }) => {
       const result = await createUserWithEmailAndPassword(auth, email, password);
       
       // Create user document
+      console.log('Creating user document for:users', );
       await setDoc(doc(db, 'users', result.user.email), {
         email: result.user.email,
         displayName: userData.displayName || email.split('@')[0],
@@ -236,7 +209,10 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    if (user) {
+      await updateUserStatus(user.email, 'offline');
+    }
     return signOut(auth);
   };
 
@@ -595,6 +571,93 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // AI Chat functionality
+  const saveAiChatMessage = async (message, isUser = true) => {
+    if (!user?.email) return null;
+    
+    try {
+      const chatMessage = {
+        id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        content: message,
+        isUser: isUser,
+        timestamp: Timestamp.now(),
+        createdAt: new Date().toISOString()
+      };
+      
+      const userDocRef = doc(db, 'chats', user.email);
+      const userDoc = await getDoc(userDocRef);
+      
+      if (userDoc.exists()) {
+        await updateDoc(userDocRef, {
+          messages: arrayUnion(chatMessage),
+          lastUpdated: Timestamp.now()
+        });
+      } else {
+        await setDoc(userDocRef, {
+          userEmail: user.email,
+          messages: [chatMessage],
+          createdAt: Timestamp.now(),
+          lastUpdated: Timestamp.now()
+        });
+      }
+      
+      return chatMessage;
+    } catch (error) {
+      console.error('Error saving AI chat message:', error);
+      throw error;
+    }
+  };
+
+  const fetchAiChatHistory = async () => {
+    if (!user?.email) return [];
+    
+    try {
+      const chatDocRef = doc(db, 'chats', user.email);
+      const chatDoc = await getDoc(chatDocRef);
+      
+      if (chatDoc.exists()) {
+        const data = chatDoc.data();
+        return data.messages || [];
+      }
+      return [];
+    } catch (error) {
+      console.error('Error fetching AI chat history:', error);
+      return [];
+    }
+  };
+
+  const clearAiChatHistory = async () => {
+    if (!user?.email) return false;
+    
+    try {
+      const chatDocRef = doc(db, 'chats', user.email);
+      await updateDoc(chatDocRef, {
+        messages: [],
+        lastUpdated: Timestamp.now()
+      });
+      return true;
+    } catch (error) {
+      console.error('Error clearing AI chat history:', error);
+      return false;
+    }
+  };
+
+  const updateUserStatus = async (email, status) => {
+    if (!email) return;
+    try {
+      const userDocRef = doc(db, 'users', email);
+      const userDoc = await getDoc(userDocRef);
+      if (userDoc.exists()) {
+        await updateDoc(userDocRef, {
+          status: status,
+          lastSeen: Timestamp.now()
+        });
+      }
+    } catch (error) {
+      console.error('Error updating user status:', error);
+    }
+  };
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       console.log('Auth state changed:', user ? user.email : 'No user');
@@ -602,13 +665,22 @@ export const AuthProvider = ({ children }) => {
       if (user) {
         await createUserInFirestore(user);
         await fetchUserData(user.email);
+        await updateUserStatus(user.email, 'online');
       } else {
+        if (auth.currentUser) {
+          await updateUserStatus(auth.currentUser.email, 'offline');
+        }
         setUserData(null);
       }
       setLoading(false);
     });
 
-    return unsubscribe;
+    return () => {
+      if (auth.currentUser) {
+        updateUserStatus(auth.currentUser.email, 'offline');
+      }
+      unsubscribe();
+    }
   }, []);
 
   const value = {
@@ -616,9 +688,9 @@ export const AuthProvider = ({ children }) => {
     userData,
     loading,
     signInWithGoogle,
-    signInWithGoogleSmart,
-    checkUserInCollection,
+    signInWithGoogleAsPeer,
     signInWithGoogleAsMentor,
+    checkUserInCollection,
     signInWithEmailPassword,
     signUpWithEmailPassword,
     logout,
@@ -632,7 +704,10 @@ export const AuthProvider = ({ children }) => {
     deleteJournalEntry,
     recordJournalSession,
     getJournalSessions,
-    shouldAskForMood
+    shouldAskForMood,
+    saveAiChatMessage,
+    fetchAiChatHistory,
+    clearAiChatHistory
   };
 
   return (

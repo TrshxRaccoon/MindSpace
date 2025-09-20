@@ -169,25 +169,7 @@ const Wellness = () => {
           </CardContent>
         </Card>
 
-        {/* Mood Tracker Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle>How are you feeling today?</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-4">
-              {moods.map((mood) => (
-                <Button
-                  key={mood}
-                  onClick={() => setCurrentMood(mood)}
-                  variant={currentMood === mood ? "default" : "secondary"}
-                >
-                  {mood}
-                </Button>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+  
 
         {/* Tab Navigation */}
         <div className="flex space-x-4">
