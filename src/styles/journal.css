@@ -1,0 +1,172 @@
+/* Notebook-style CSS for journal interface */
+
+/* Notebook page styling with lines */
+.notebook-page-lines::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    /* Red margin line */
+    linear-gradient(to right, transparent 64px, #ff9999 64px, #ff9999 66px, transparent 66px),
+    /* Horizontal ruled lines */
+    repeating-linear-gradient(
+      transparent,
+      transparent 28px,
+      #e2e8f0 28px,
+      #e2e8f0 29px
+    );
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Content should be above the lines */
+.notebook-page-lines > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Lined textarea styling */
+.notebook-lines {
+  background-image: 
+    repeating-linear-gradient(
+      transparent,
+      transparent 28px,
+      #e5e7eb 28px,
+      #e5e7eb 29px
+    );
+  line-height: 29px !important;
+  padding-top: 4px;
+}
+
+/* Paper texture effect */
+.paper-texture {
+  background-image: 
+    radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.8) 0%, transparent 50%),
+    radial-gradient(circle at 40% 40%, rgba(120, 119, 198, 0.15) 0%, transparent 50%);
+  background-color: #fefefe;
+}
+
+/* Notebook spiral binding holes */
+.notebook-holes {
+  background-image: 
+    radial-gradient(circle at 50% 50%, #d1d5db 2px, transparent 2px);
+  background-size: 1px 40px;
+  background-repeat: repeat-y;
+  background-position: 16px 20px;
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+  .notebook-page-lines::before {
+    background-image: 
+      /* Adjusted margin line for mobile */
+      linear-gradient(to right, transparent 32px, #ff9999 32px, #ff9999 34px, transparent 34px),
+      repeating-linear-gradient(
+        transparent,
+        transparent 28px,
+        #e2e8f0 28px,
+        #e2e8f0 29px
+      );
+  }
+}
+
+/* Smooth transitions for interactive elements */
+.journal-transition {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Custom scrollbar for notebook view */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Focus styles for accessibility */
+.journal-focus:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Animation for page creation */
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.page-enter {
+  animation: slideInRight 0.3s ease-out;
+}
+
+/* Mood indicator styling */
+.mood-indicator {
+  position: relative;
+  overflow: hidden;
+}
+
+.mood-indicator::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.4),
+    transparent
+  );
+  transition: left 0.5s;
+}
+
+.mood-indicator:hover::after {
+  left: 100%;
+}
+
+/* Text selection styling */
+::selection {
+  background-color: rgba(59, 130, 246, 0.2);
+  color: inherit;
+}
+
+/* Print styles for journal pages */
+@media print {
+  .notebook-page-lines::before {
+    background-image: 
+      linear-gradient(to right, transparent 64px, #000 64px, #000 66px, transparent 66px),
+      repeating-linear-gradient(
+        transparent,
+        transparent 28px,
+        #000 28px,
+        #000 29px
+      );
+  }
+  
+  .no-print {
+    display: none !important;
+  }
+}

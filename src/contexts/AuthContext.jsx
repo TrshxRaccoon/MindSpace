@@ -212,6 +212,257 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Journal functionality - Updated for journal array structure
+  const fetchJournals = async () => {
+    if (!user?.email) return [];
+    
+    try {
+      const userDocRef = doc(db, 'users', user.email);
+      const userDoc = await getDoc(userDocRef);
+      
+      if (userDoc.exists()) {
+        const data = userDoc.data();
+        const journal = data.journal || [];
+        return journal.sort((a, b) => b.date.seconds - a.date.seconds);
+      }
+      return [];
+    } catch (error) {
+      console.error('Error fetching journals:', error);
+      return [];
+    }
+  };
+
+  const saveJournalEntry = async (entry, mood) => {
+    if (!user?.email || !userData) return null;
+    
+    try {
+      const newJournalEntry = {
+        date: Timestamp.now(),
+        entry: entry.trim(),
+        mood: mood.toLowerCase()
+      };
+      
+      const userDocRef = doc(db, 'users', user.email);
+      await updateDoc(userDocRef, {
+        journal: arrayUnion(newJournalEntry)
+      });
+      
+      return newJournalEntry;
+    } catch (error) {
+      console.error('Error saving journal entry:', error);
+      throw error;
+    }
+  };
+
+  const deleteJournalEntry = async (entryIndex) => {
+    if (!user?.email) return false;
+    
+    try {
+      const currentJournals = await fetchJournals();
+      if (entryIndex >= 0 && entryIndex < currentJournals.length) {
+        const updatedJournals = currentJournals.filter((_, index) => index !== entryIndex);
+        
+        const userDocRef = doc(db, 'users', user.email);
+        await updateDoc(userDocRef, {
+          journal: updatedJournals
+        });
+        
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error deleting journal entry:', error);
+      return false;
+    }
+  };
+
+  const updateJournal = async (journalId, updates) => {
+    if (!user?.email) return;
+    
+    try {
+      const currentJournals = await fetchJournals();
+      const journalIndex = currentJournals.findIndex(journal => journal.id === journalId);
+      
+      if (journalIndex !== -1) {
+        currentJournals[journalIndex] = {
+          ...currentJournals[journalIndex],
+          ...updates,
+          lastModified: Timestamp.now()
+        };
+        
+        const userDocRef = doc(db, 'users', user.email);
+        await updateDoc(userDocRef, {
+          journals: currentJournals
+        });
+        
+        // Update local userData
+        setUserData(prev => ({
+          ...prev,
+          journals: currentJournals
+        }));
+      }
+    } catch (error) {
+      console.error('Error updating journal:', error);
+    }
+  };
+
+  const deleteJournal = async (journalId) => {
+    if (!user?.email) return;
+    
+    try {
+      const currentJournals = await fetchJournals();
+      const filteredJournals = currentJournals.filter(journal => journal.id !== journalId);
+      
+      const userDocRef = doc(db, 'users', user.email);
+      await updateDoc(userDocRef, {
+        journals: filteredJournals
+      });
+      
+      // Update local userData
+      setUserData(prev => ({
+        ...prev,
+        journals: filteredJournals
+      }));
+    } catch (error) {
+      console.error('Error deleting journal:', error);
+    }
+  };
+
+  const addPageToJournal = async (journalId) => {
+    if (!user?.email) return null;
+    
+    try {
+      const currentJournals = await fetchJournals();
+      const journalIndex = currentJournals.findIndex(journal => journal.id === journalId);
+      
+      if (journalIndex !== -1) {
+        const newPage = {
+          id: `page_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          content: '',
+          createdAt: Timestamp.now()
+        };
+        
+        currentJournals[journalIndex].pages.push(newPage);
+        currentJournals[journalIndex].lastModified = Timestamp.now();
+        
+        const userDocRef = doc(db, 'users', user.email);
+        await updateDoc(userDocRef, {
+          journals: currentJournals
+        });
+        
+        setUserData(prev => ({
+          ...prev,
+          journals: currentJournals
+        }));
+        
+        return newPage;
+      }
+    } catch (error) {
+      console.error('Error adding page to journal:', error);
+      return null;
+    }
+  };
+
+  const updateJournalPage = async (journalId, pageId, content) => {
+    if (!user?.email) return;
+    
+    try {
+      const currentJournals = await fetchJournals();
+      const journalIndex = currentJournals.findIndex(journal => journal.id === journalId);
+      
+      if (journalIndex !== -1) {
+        const pageIndex = currentJournals[journalIndex].pages.findIndex(page => page.id === pageId);
+        if (pageIndex !== -1) {
+          currentJournals[journalIndex].pages[pageIndex].content = content;
+          currentJournals[journalIndex].lastModified = Timestamp.now();
+          
+          const userDocRef = doc(db, 'users', user.email);
+          await updateDoc(userDocRef, {
+            journals: currentJournals
+          });
+          
+          setUserData(prev => ({
+            ...prev,
+            journals: currentJournals
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('Error updating journal page:', error);
+    }
+  };
+
+  // Session mood tracking
+  const recordJournalSession = async (mood) => {
+    if (!user?.email) return;
+    
+    try {
+      const sessionEntry = {
+        id: `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        date: Timestamp.now(),
+        mood: mood,
+        timestamp: Date.now()
+      };
+      
+      const userDocRef = doc(db, 'users', user.email);
+      const userDoc = await getDoc(userDocRef);
+      
+      if (userDoc.exists()) {
+        const data = userDoc.data();
+        const journalSessions = data.journalSessions || [];
+        const updatedSessions = [...journalSessions, sessionEntry];
+        
+        await updateDoc(userDocRef, {
+          journalSessions: updatedSessions
+        });
+        
+        // Update local userData
+        setUserData(prev => ({
+          ...prev,
+          journalSessions: updatedSessions
+        }));
+      }
+    } catch (error) {
+      console.error('Error recording journal session:', error);
+    }
+  };
+
+  const getJournalSessions = async () => {
+    if (!user?.email) return [];
+    
+    try {
+      const userDocRef = doc(db, 'users', user.email);
+      const userDoc = await getDoc(userDocRef);
+      
+      if (userDoc.exists()) {
+        const data = userDoc.data();
+        return data.journalSessions || [];
+      }
+      return [];
+    } catch (error) {
+      console.error('Error fetching journal sessions:', error);
+      return [];
+    }
+  };
+
+  const shouldAskForMood = async () => {
+    try {
+      const sessions = await getJournalSessions();
+      if (sessions.length === 0) return true;
+      
+      // Check if user has logged a mood in the last 24 hours
+      const lastSession = sessions[sessions.length - 1];
+      const lastSessionTime = lastSession.timestamp;
+      const now = Date.now();
+      const twentyFourHours = 24 * 60 * 60 * 1000;
+      
+      return (now - lastSessionTime) > twentyFourHours;
+    } catch (error) {
+      console.error('Error checking mood requirement:', error);
+      return true;
+    }
+  };
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
@@ -237,7 +488,13 @@ export const AuthProvider = ({ children }) => {
     fetchPosts,
     createPost,
     likePost,
-    addComment
+    addComment,
+    fetchJournals,
+    saveJournalEntry,
+    deleteJournalEntry,
+    recordJournalSession,
+    getJournalSessions,
+    shouldAskForMood
   };
 
   return (
