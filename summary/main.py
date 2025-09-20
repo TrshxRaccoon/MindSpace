@@ -63,11 +63,14 @@ def summarize_with_gemini(entries):
     model = genai.GenerativeModel("gemini-1.5-flash")
 
     prompt = (
-        "You are an AI assistant that provides a compassionate and insightful summary "
-        "of a user's journal entries. Based on the following entries from the past week, "
-        "provide a summary that highlights key themes, emotions, and potential insights. "
-        "The summary should be supportive and encouraging.\n\n"
-        "Journal Entries:\n"
+        "You are an AI assistant that provides a compassionate and insightful summary, do not include any introductory message get the summary directly"
+        "of a user's journal entries from the past week. "
+        "Your response MUST be a single, clean HTML string. "
+        "Do not include any CSS, <style> tags, markdown, or the ```html wrapper. "
+        "Use only the following HTML tags: <p>, <strong>, <em>, <ul>, and <li>. "
+        "Highlight key themes, emotions, and potential insights. The summary should be supportive, "
+        "encouraging"
+        "\n\nJournal Entries:\n"
         f"{full_text}"
     )
 
