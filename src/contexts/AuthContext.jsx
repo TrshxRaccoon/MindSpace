@@ -1,7 +1,20 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { auth, db, googleProvider } from '../firebase-init';
 import { onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { 
+  doc, 
+  getDoc, 
+  setDoc, 
+  collection, 
+  getDocs, 
+  addDoc, 
+  updateDoc, 
+  arrayUnion, 
+  arrayRemove,
+  query,
+  orderBy,
+  Timestamp
+} from 'firebase/firestore';
 import { uniqueNamesGenerator, adjectives, animals } from 'unique-names-generator';
 
 const AuthContext = createContext();
@@ -95,6 +108,110 @@ export const AuthProvider = ({ children }) => {
     return signOut(auth);
   };
 
+  // Posts functionality
+  const fetchPosts = async () => {
+    try {
+      const postsCollection = collection(db, 'posts');
+      const postsQuery = query(postsCollection, orderBy('date', 'desc'));
+      const postsSnapshot = await getDocs(postsQuery);
+      
+      const posts = postsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      
+      return posts;
+    } catch (error) {
+      console.error('Error fetching posts:', error);
+      return [];
+    }
+  };
+
+  const createPost = async (postData) => {
+    if (!user || !userData) return null;
+    
+    try {
+      const newPost = {
+        username: userData.username,
+        user: user.email + " (hidden)", // Email but marked as hidden
+        title: postData.title,
+        content: postData.content,
+        date: Timestamp.now(),
+        likes: 0,
+        likedBy: [],
+        comments: {},
+        numberOfFlags: 0
+      };
+      
+      const docRef = await addDoc(collection(db, 'posts'), newPost);
+      return { id: docRef.id, ...newPost };
+    } catch (error) {
+      console.error('Error creating post:', error);
+      throw error;
+    }
+  };
+
+  const likePost = async (postId) => {
+    if (!user || !userData) return;
+    
+    try {
+      const postRef = doc(db, 'posts', postId);
+      const postDoc = await getDoc(postRef);
+      
+      if (postDoc.exists()) {
+        const postData = postDoc.data();
+        const likedBy = postData.likedBy || [];
+        const currentLikes = postData.likes || 0;
+        
+        if (likedBy.includes(userData.username)) {
+          // Unlike
+          await updateDoc(postRef, {
+            likedBy: arrayRemove(userData.username),
+            likes: currentLikes - 1
+          });
+        } else {
+          // Like
+          await updateDoc(postRef, {
+            likedBy: arrayUnion(userData.username),
+            likes: currentLikes + 1
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error liking post:', error);
+    }
+  };
+
+  const addComment = async (postId, commentText) => {
+    if (!user || !userData || !commentText.trim()) return;
+    
+    try {
+      const postRef = doc(db, 'posts', postId);
+      const postDoc = await getDoc(postRef);
+      
+      if (postDoc.exists()) {
+        const postData = postDoc.data();
+        const currentComments = postData.comments || {};
+        
+        // Generate a unique comment ID
+        const commentId = `comment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        
+        const newComment = {
+          content: commentText,
+          user: userData.username,
+          date: Timestamp.now()
+        };
+        
+        // Update the comments map
+        await updateDoc(postRef, {
+          [`comments.${commentId}`]: newComment
+        });
+      }
+    } catch (error) {
+      console.error('Error adding comment:', error);
+    }
+  };
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
@@ -116,7 +233,11 @@ export const AuthProvider = ({ children }) => {
     loading,
     signInWithGoogle,
     logout,
-    fetchUserData
+    fetchUserData,
+    fetchPosts,
+    createPost,
+    likePost,
+    addComment
   };
 
   return (
