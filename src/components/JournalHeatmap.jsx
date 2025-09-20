@@ -2,15 +2,29 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 
 const JournalHeatmap = ({ journalData }) => {
-  // Generate last 365 days
-  const generateDatesArray = () => {
-    const dates = [];
+  // Generate proper heatmap grid starting from Sunday of the week containing 365 days ago
+  const generateHeatmapGrid = () => {
     const today = new Date();
+    const oneYearAgo = new Date(today);
+    oneYearAgo.setDate(today.getDate() - 364); // 365 days total (including today)
     
-    for (let i = 364; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(today.getDate() - i);
-      dates.push(new Date(date));
+    // Find the Sunday of the week containing oneYearAgo
+    const startDate = new Date(oneYearAgo);
+    const dayOfWeek = startDate.getDay(); // 0 = Sunday
+    startDate.setDate(startDate.getDate() - dayOfWeek);
+    
+    // Generate all dates from that Sunday to the Saturday of the week containing today
+    const endDate = new Date(today);
+    const todayDayOfWeek = endDate.getDay();
+    const daysToAdd = 6 - todayDayOfWeek; // Days to reach Saturday
+    endDate.setDate(endDate.getDate() + daysToAdd);
+    
+    const dates = [];
+    const currentDate = new Date(startDate);
+    
+    while (currentDate <= endDate) {
+      dates.push(new Date(currentDate));
+      currentDate.setDate(currentDate.getDate() + 1);
     }
     
     return dates;
@@ -53,22 +67,14 @@ const JournalHeatmap = ({ journalData }) => {
     return 'bg-green-400 border-green-500';
   };
 
-  const dates = generateDatesArray();
+  const dates = generateHeatmapGrid();
   const dateCountMap = processJournalData();
   
-  // Group dates by weeks
+  // Group dates into weeks (7 days each)
   const weeks = [];
-  let currentWeek = [];
-  
-  dates.forEach((date, index) => {
-    currentWeek.push(date);
-    
-    // If it's Sunday (0) or the last date, start a new week
-    if (date.getDay() === 6 || index === dates.length - 1) {
-      weeks.push([...currentWeek]);
-      currentWeek = [];
-    }
-  });
+  for (let i = 0; i < dates.length; i += 7) {
+    weeks.push(dates.slice(i, i + 7));
+  }
 
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -81,23 +87,24 @@ const JournalHeatmap = ({ journalData }) => {
           Your journaling activity over the past year - each square represents a day
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-4">
         <div className="flex flex-col space-y-2">
-          {/* Scrollable container for smaller screens */}
-          <div className="overflow-x-auto">
-            <div className="min-w-[800px] flex flex-col space-y-2">
+          {/* Scrollable container for the heatmap */}
+          <div className="overflow-x-auto pb-2">
+            <div className="min-w-[700px] flex flex-col space-y-2">
               {/* Month labels */}
               <div className="flex space-x-1 mb-2 pl-16">
-                {Array.from({ length: 52 }, (_, weekIndex) => {
-                  const weekStart = weeks[weekIndex]?.[0];
+                {weeks.map((week, weekIndex) => {
+                  const weekStart = week[0];
                   if (!weekStart) return <div key={weekIndex} className="w-3" />;
                   
-                  const isFirstOfMonth = weekStart.getDate() <= 7;
+                  // Show month name on first week of month or first week overall
+                  const isFirstWeekOfMonth = weekStart.getDate() <= 7 || weekIndex === 0;
                   const monthName = monthNames[weekStart.getMonth()];
                   
                   return (
                     <div key={weekIndex} className="w-3 text-xs text-gray-500 text-left">
-                      {isFirstOfMonth ? monthName.slice(0, 3) : ''}
+                      {isFirstWeekOfMonth ? monthName.slice(0, 3) : ''}
                     </div>
                   );
                 })}
@@ -115,24 +122,28 @@ const JournalHeatmap = ({ journalData }) => {
                 </div>
                 
                 {/* Calendar grid */}
-                <div className="flex space-x-1 flex-1">
-                  {weeks.slice(0, 52).map((week, weekIndex) => (
+                <div className="flex space-x-1">
+                  {weeks.map((week, weekIndex) => (
                     <div key={weekIndex} className="flex flex-col space-y-1">
-                      {Array.from({ length: 7 }, (_, dayIndex) => {
-                        const date = week[dayIndex];
-                        if (!date) return (
-                          <div key={dayIndex} className="w-3 h-3 sm:w-3 sm:h-3" />
-                        );
-                        
+                      {week.map((date, dayIndex) => {
                         const dateStr = date.toDateString();
                         const count = dateCountMap[dateStr] || 0;
                         const intensityClass = getIntensityLevel(count);
+                        const today = new Date();
+                        const isToday = date.toDateString() === today.toDateString();
+                        const isFuture = date > today;
                         
                         return (
                           <div
                             key={dayIndex}
-                            className={`w-3 h-3 sm:w-3 sm:h-3 border rounded-sm ${intensityClass} hover:scale-110 transition-transform cursor-pointer`}
-                            title={`${dateStr}: ${count} ${count === 1 ? 'entry' : 'entries'}`}
+                            className={`w-3 h-3 border rounded-sm ${
+                              isFuture 
+                                ? 'bg-gray-50 border-gray-200 opacity-30' 
+                                : intensityClass
+                            } ${
+                              isToday ? 'ring-1 ring-blue-500' : ''
+                            } hover:scale-110 transition-transform cursor-pointer`}
+                            title={`${dateStr}: ${isFuture ? 'Future' : `${count} ${count === 1 ? 'entry' : 'entries'}`}`}
                           />
                         );
                       })}
@@ -162,7 +173,7 @@ const JournalHeatmap = ({ journalData }) => {
           
           {/* Mobile scroll hint */}
           <div className="text-xs text-gray-400 text-center sm:hidden">
-            ← Scroll to see full year →
+            ← Swipe to see full year →
           </div>
         </div>
       </CardContent>

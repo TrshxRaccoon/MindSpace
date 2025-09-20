@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 
 const MoodRadarChart = ({ journalData }) => {
   // Define mood categories
-  const moodCategories = ['happy', 'angry', 'sad', 'jealous', 'lonely', 'bored'];
+  const moodCategories = ['happy', 'sad', 'angry', 'anxious', 'loved', 'surprised'];
   
   // Process journal data to count moods
   const processMoodData = () => {

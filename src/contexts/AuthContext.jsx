@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { auth, db, googleProvider } from '../firebase-init';
-import { onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
+import { onAuthStateChanged, signInWithPopup, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { 
   doc, 
   getDoc, 
@@ -99,6 +99,139 @@ export const AuthProvider = ({ children }) => {
       return result.user;
     } catch (error) {
       console.error('Error signing in with Google:', error);
+      throw error;
+    }
+  };
+
+  const checkUserInCollection = async (email, collection) => {
+    try {
+      const userDocRef = doc(db, collection, email);
+      const userDoc = await getDoc(userDocRef);
+      return userDoc.exists() ? userDoc.data() : null;
+    } catch (error) {
+      console.error(`Error checking user in ${collection}:`, error);
+      return null;
+    }
+  };
+
+  const signInWithGoogleSmart = async (userType = 'peer') => {
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const user = result.user;
+      
+      console.log('Checking user collections for:', user.email);
+      
+      // First check if user exists in users collection
+      const userData = await checkUserInCollection(user.email, 'users');
+      if (userData) {
+        console.log('User found in users collection, routing to main dashboard');
+        // Also set the userData for the context
+        await fetchUserData(user.email);
+        return { user, userType: 'peer', collection: 'users', data: userData };
+      }
+      
+      // Then check if user exists in mentors collection
+      const mentorData = await checkUserInCollection(user.email, 'mentors');
+      if (mentorData) {
+        console.log('User found in mentors collection, routing to mentor dashboard');
+        return { user, userType: 'mentor', collection: 'mentors', data: mentorData };
+      }
+      
+      // User doesn't exist in either collection, create based on selected userType
+      console.log(`User not found in any collection. Creating new ${userType} account for:`, user.email);
+      
+      if (userType === 'mentor') {
+        // Create mentor account
+        const mentorData = {
+          email: user.email,
+          displayName: user.displayName,
+          photoURL: user.photoURL,
+          role: 'mentor',
+          createdAt: Timestamp.now(),
+          isActive: true
+        };
+        await setDoc(doc(db, 'mentors', user.email), mentorData);
+        console.log('New mentor account created');
+        return { user, userType: 'mentor', collection: 'mentors', data: mentorData, isNewUser: true };
+      } else {
+        // Create peer account
+        const peerData = {
+          email: user.email,
+          displayName: user.displayName,
+          photoURL: user.photoURL,
+          username: generateRandomUsername(),
+          journal: [],
+          sessions: [],
+          createdAt: Timestamp.now()
+        };
+        await setDoc(doc(db, 'users', user.email), peerData);
+        console.log('New peer account created');
+        // Also set the userData for the context
+        await fetchUserData(user.email);
+        return { user, userType: 'peer', collection: 'users', data: peerData, isNewUser: true };
+      }
+      
+    } catch (error) {
+      console.error('Error in smart Google sign in:', error);
+      throw error;
+    }
+  };
+
+  const signInWithGoogleAsMentor = async () => {
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const mentorUser = result.user;
+      
+      // Create mentor document if it doesn't exist
+      const mentorDocRef = doc(db, 'mentors', mentorUser.email);
+      const mentorDoc = await getDoc(mentorDocRef);
+      
+      if (!mentorDoc.exists()) {
+        await setDoc(mentorDocRef, {
+          email: mentorUser.email,
+          displayName: mentorUser.displayName,
+          photoURL: mentorUser.photoURL,
+          role: 'mentor',
+          createdAt: Timestamp.now(),
+          isActive: true
+        });
+      }
+      
+      return mentorUser;
+    } catch (error) {
+      console.error('Error signing in as mentor with Google:', error);
+      throw error;
+    }
+  };
+
+  const signInWithEmailPassword = async (email, password) => {
+    try {
+      const result = await signInWithEmailAndPassword(auth, email, password);
+      return result.user;
+    } catch (error) {
+      console.error('Error signing in with email and password:', error);
+      throw error;
+    }
+  };
+
+  const signUpWithEmailPassword = async (email, password, userData = {}) => {
+    try {
+      const result = await createUserWithEmailAndPassword(auth, email, password);
+      
+      // Create user document
+      await setDoc(doc(db, 'users', result.user.email), {
+        email: result.user.email,
+        displayName: userData.displayName || email.split('@')[0],
+        username: userData.username || generateRandomUsername(),
+        journal: [],
+        sessions: [],
+        createdAt: Timestamp.now(),
+        ...userData
+      });
+      
+      return result.user;
+    } catch (error) {
+      console.error('Error creating user with email and password:', error);
       throw error;
     }
   };
@@ -483,6 +616,11 @@ export const AuthProvider = ({ children }) => {
     userData,
     loading,
     signInWithGoogle,
+    signInWithGoogleSmart,
+    checkUserInCollection,
+    signInWithGoogleAsMentor,
+    signInWithEmailPassword,
+    signUpWithEmailPassword,
     logout,
     fetchUserData,
     fetchPosts,

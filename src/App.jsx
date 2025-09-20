@@ -7,6 +7,7 @@ import Chat from './pages/Chat';
 import Posts from './pages/Posts';
 import Journal from './pages/Journal';
 import Wellness from './pages/Wellness';
+import Mentor from './pages/Mentor';
 import './App.css'
 
 function App() {
@@ -51,11 +52,19 @@ function App() {
                 </ProtectedRoute>
               } 
             />
-              <Route 
+            <Route 
               path="/wellness" 
               element={
                 <ProtectedRoute>
                   <Wellness />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/mentor" 
+              element={
+                <ProtectedRoute>
+                  <Mentor />
                 </ProtectedRoute>
               } 
             />

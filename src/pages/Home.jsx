@@ -22,7 +22,7 @@ const Home = () => {
 
   // Get journal statistics
   const getJournalStats = () => {
-    if (!userData?.journal) return { total: 0, thisWeek: 0, averageMood: 'N/A' };
+    if (!userData?.journal) return { total: 0, thisWeek: 0, averageMood: 'N/A', streak: 0 };
 
     const journal = userData.journal;
     const total = journal.length;
@@ -55,7 +55,72 @@ const Home = () => {
       ? Object.keys(moodCount).reduce((a, b) => moodCount[a] > moodCount[b] ? a : b)
       : 'N/A';
 
-    return { total, thisWeek, averageMood };
+    // Calculate daily streak
+    const streak = calculateDailyStreak(journal);
+
+    return { total, thisWeek, averageMood, streak };
+  };
+
+  // Calculate daily streak function
+  const calculateDailyStreak = (journal) => {
+    if (!journal || journal.length === 0) return 0;
+
+    // Sort entries by date descending
+    const sortedEntries = [...journal].sort((a, b) => {
+      const dateA = a.date?.seconds ? new Date(a.date.seconds * 1000) : new Date(a.date);
+      const dateB = b.date?.seconds ? new Date(b.date.seconds * 1000) : new Date(b.date);
+      return dateB - dateA;
+    });
+
+    // Get unique dates (only date part, not time)
+    const uniqueDates = [];
+    const seenDates = new Set();
+    
+    sortedEntries.forEach(entry => {
+      if (!entry.date) return;
+      
+      let entryDate;
+      if (entry.date.seconds) {
+        entryDate = new Date(entry.date.seconds * 1000);
+      } else {
+        entryDate = new Date(entry.date);
+      }
+      
+      const dateStr = entryDate.toDateString();
+      if (!seenDates.has(dateStr)) {
+        seenDates.add(dateStr);
+        uniqueDates.push(new Date(entryDate.getFullYear(), entryDate.getMonth(), entryDate.getDate()));
+      }
+    });
+
+    if (uniqueDates.length === 0) return 0;
+
+    // Check if today has an entry
+    const today = new Date();
+    const todayStr = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+    const mostRecentEntryStr = uniqueDates[0].getTime();
+    
+    // If the most recent entry is not today or yesterday, streak is 0
+    const daysDifference = Math.floor((todayStr - mostRecentEntryStr) / (1000 * 60 * 60 * 24));
+    if (daysDifference > 1) return 0;
+
+    // Calculate consecutive days
+    let streak = 1;
+    for (let i = 1; i < uniqueDates.length; i++) {
+      const currentDate = uniqueDates[i];
+      const previousDate = uniqueDates[i - 1];
+      
+      const timeDiff = previousDate.getTime() - currentDate.getTime();
+      const dayDiff = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+      
+      if (dayDiff === 1) {
+        streak++;
+      } else {
+        break;
+      }
+    }
+
+    return streak;
   };
 
   const stats = getJournalStats();
@@ -117,13 +182,42 @@ const Home = () => {
             <BarChart3 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.thisWeek > 0 ? '🔥' : '💤'}</div>
+            <div className="text-2xl font-bold">{stats.streak}</div>
             <p className="text-xs text-muted-foreground">
-              {stats.thisWeek > 0 ? 'Keep it up!' : 'Start journaling today'}
+              {stats.streak > 0 ? `${stats.streak} day${stats.streak > 1 ? 's' : ''} in a row` : 'Start your streak today'}
             </p>
           </CardContent>
         </Card>
       </div>
+
+      {/* Weekly Summary */}
+      {userData?.weeklySummary && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Weekly Summary</CardTitle>
+            <CardDescription>
+              AI-generated insights from your journal entries
+              {userData.weeklySummary.generatedAt && (
+                <span className="block text-xs mt-1">
+                  Generated: {new Date(
+                    userData.weeklySummary.generatedAt.seconds 
+                      ? userData.weeklySummary.generatedAt.seconds * 1000 
+                      : userData.weeklySummary.generatedAt
+                  ).toLocaleDateString()}
+                </span>
+              )}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="prose prose-sm max-w-none">
+              <div 
+                className="text-sm leading-relaxed"
+                dangerouslySetInnerHTML={{ __html: userData.weeklySummary.summaryText }}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Charts Section */}
       <div className="grid gap-4 grid-cols-1 lg:grid-cols-3">
