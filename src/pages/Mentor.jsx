@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { useFirebaseChat } from '../contexts/FirebaseChatContext';
+import { useFirebaseRealtimeChat } from '../contexts/FirebaseRealtimeChatContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -21,28 +21,14 @@ import {
 
 const Mentor = () => {
   const { user, logout } = useAuth();
-  const { isConnected, setMentorOnline, setMentorOffline } = useFirebaseChat();
+  const { isConnected, userChats } = useFirebaseRealtimeChat();
 
-  // Set mentor as online when component mounts
-  useEffect(() => {
-    if (user && isConnected && user.email?.includes('mentor')) {
-      setMentorOnline();
-    }
-
-    // Set as offline when component unmounts
-    return () => {
-      if (user && user.email?.includes('mentor')) {
-        setMentorOffline();
-      }
-    };
-  }, [user, isConnected, setMentorOnline, setMentorOffline]);
+  // Note: Mentor online status is automatically handled by FirebaseRealtimeChatContext
+  // No manual status management needed
 
   const handleLogout = async () => {
     try {
-      // Set as offline before logout
-      if (user && user.email?.includes('mentor')) {
-        setMentorOffline();
-      }
+      // Status will be automatically set to offline by the context
       await logout();
     } catch (error) {
       console.error('Logout error:', error);
@@ -85,45 +71,6 @@ const Mentor = () => {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Debug Section */}
-        <div className="mb-6">
-          <Card className="border-yellow-200 bg-yellow-50">
-            <CardContent className="p-4">
-              <h3 className="font-medium text-sm mb-2">🔧 Debug - Online Status Test</h3>
-              <div className="flex items-center space-x-4">
-                <Button 
-                  onClick={() => {
-                    const mentorData = {
-                      email: user?.email,
-                      displayName: user?.displayName,
-                      photoURL: user?.photoURL
-                    };
-                    console.log('Manual test - setting mentor online:', mentorData);
-                    setMentorOnline(mentorData);
-                  }}
-                  size="sm"
-                  className="bg-green-600 hover:bg-green-700"
-                >
-                  Test Set Online
-                </Button>
-                <Button 
-                  onClick={() => {
-                    console.log('Manual test - setting mentor offline:', user?.email);
-                    setMentorOffline(user?.email);
-                  }}
-                  size="sm"
-                  variant="destructive"
-                >
-                  Test Set Offline
-                </Button>
-                <div className="text-xs text-gray-600">
-                  Check console for logs
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
         {/* Coming Soon Banner */}
         <div className="mb-8">
           <Card className="border-purple-200 bg-gradient-to-r from-purple-50 to-indigo-50">
@@ -177,27 +124,12 @@ const Mentor = () => {
               <div className="space-y-3">
                 <p className="text-sm text-gray-600">
                   {isConnected 
-                    ? "You are connected and available for real-time chat sessions."
+                    ? "You are automatically available for real-time chat sessions."
                     : "Connection lost. Attempting to reconnect..."
                   }
                 </p>
-                <div className="flex space-x-2">
-                  <Button 
-                    size="sm" 
-                    onClick={setMentorOnline}
-                    disabled={!isConnected}
-                    className="bg-green-600 hover:bg-green-700"
-                  >
-                    Set Online
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    onClick={setMentorOffline}
-                    disabled={!isConnected}
-                  >
-                    Set Offline
-                  </Button>
+                <div className="text-xs text-gray-500">
+                  Your online status is managed automatically. Peers can see when you're available to chat.
                 </div>
               </div>
             </CardContent>

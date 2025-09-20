@@ -31,6 +31,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [userType, setUserType] = useState(null); // Track if user is mentor or peer
 
   const generateRandomUsername = () => {
     return uniqueNamesGenerator({
@@ -122,6 +123,7 @@ export const AuthProvider = ({ children }) => {
       const userData = await checkUserInCollection(user.email, 'users');
       if (userData) {
         console.log('User found in users collection. Logging in as peer.');
+        setUserType('peer');
         await fetchUserData(user.email);
         return { user, userType: 'peer', collection: 'users', data: userData };
       }
@@ -134,9 +136,11 @@ export const AuthProvider = ({ children }) => {
         username: generateRandomUsername(),
         journal: [],
         sessions: [],
+        userType: 'peer',
         createdAt: Timestamp.now()
       };
       await setDoc(doc(db, 'users', user.email), peerData, { merge: true });
+      setUserType('peer');
       await fetchUserData(user.email);
       return { user, userType: 'peer', collection: 'users', data: peerData, isNewUser: true };
 
@@ -154,6 +158,7 @@ export const AuthProvider = ({ children }) => {
       const mentorData = await checkUserInCollection(user.email, 'mentors');
       if (mentorData) {
         console.log('User found in mentors collection. Logging in as mentor.');
+        setUserType('mentor');
         return { user, userType: 'mentor', collection: 'mentors', data: mentorData };
       }
      
@@ -164,10 +169,12 @@ export const AuthProvider = ({ children }) => {
         displayName: user.displayName,
         photoURL: user.photoURL,
         role: 'mentor',
+        userType: 'mentor',
         createdAt: Timestamp.now(),
         isActive: true
       };
       await setDoc(doc(db, 'mentors', user.email), newMentorData);
+      setUserType('mentor');
       return { user, userType: 'mentor', collection: 'mentors', data: newMentorData, isNewUser: true };
       
     } catch (error) {
@@ -686,6 +693,7 @@ export const AuthProvider = ({ children }) => {
   const value = {
     user,
     userData,
+    userType,
     loading,
     signInWithGoogle,
     signInWithGoogleAsPeer,
