@@ -5,24 +5,25 @@ import { useAuth } from '../contexts/AuthContext';
 const Login = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const { signInWithGoogle, user } = useAuth();
+  const { signInWithGoogle, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
   const from = location.state?.from?.pathname || '/';
 
   useEffect(() => {
-    if (user) {
+    if (user && !authLoading) {
+      console.log('User authenticated, navigating to:', from);
       navigate(from, { replace: true });
     }
-  }, [user, navigate, from]);
+  }, [user, authLoading, navigate, from]);
 
   const handleGoogleLogin = async () => {
     try {
       setError('');
       setLoading(true);
       await signInWithGoogle();
-      navigate(from, { replace: true });
+      // Don't navigate here - let the useEffect handle it
     } catch (error) {
       setError('Failed to sign in with Google. Please try again.');
       console.error('Login error:', error);
@@ -31,8 +32,25 @@ const Login = () => {
     }
   };
 
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (user) {
-    return <div>Redirecting...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <p className="text-gray-600">Redirecting...</p>
+        </div>
+      </div>
+    );
   }
 
   return (

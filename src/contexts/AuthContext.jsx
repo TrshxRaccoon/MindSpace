@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { auth, db, googleProvider } from '../firebase-init';
-import { onAuthStateChanged, signInWithRedirect, signOut } from 'firebase/auth';
+import { onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
 import { 
   doc, 
   getDoc, 
@@ -95,7 +95,8 @@ export const AuthProvider = ({ children }) => {
 
   const signInWithGoogle = async () => {
     try {
-      await signInWithRedirect(auth, googleProvider);
+      const result = await signInWithPopup(auth, googleProvider);
+      return result.user;
     } catch (error) {
       console.error('Error signing in with Google:', error);
       throw error;
@@ -463,6 +464,7 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      console.log('Auth state changed:', user ? user.email : 'No user');
       setUser(user);
       if (user) {
         await createUserInFirestore(user);
