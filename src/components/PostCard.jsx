@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { doc, getDoc, updateDoc, setDoc, deleteDoc } from 'firebase/firestore';
+import { db } from '../firebase-init.js';
 import { useAuth } from '../contexts/AuthContext';
 import { Card, CardContent, CardHeader } from './ui/card';
 import { Button } from './ui/button';
@@ -39,6 +41,30 @@ const PostCard = ({ post, onUpdate }) => {
       onUpdate(); // Refresh posts
     } catch (error) {
       console.error('Error liking post:', error);
+    }
+  };
+
+  const handleReport = async () => {
+    try {
+      const postRef = doc(db, 'posts', post.id);
+      const postSnap = await getDoc(postRef);
+      if (!postSnap.exists()) return;
+      const postData = postSnap.data();
+      const currentFlags = postData.numberOfFlags?.count || 0;
+      const reportedBy = postData.numberOfFlags?.reportedBy || [];
+      if (reportedBy.includes(userData?.username)) return;
+      const newReportedBy = [...reportedBy, userData?.username];
+      const newFlags = currentFlags + 1;
+      if (newFlags >= 3) {
+        const flaggedRef = doc(db, 'flagged', post.id);
+        await setDoc(flaggedRef, { ...postData, numberOfFlags: { count: newFlags, reportedBy: newReportedBy } });
+        await deleteDoc(postRef);
+      } else {
+        await updateDoc(postRef, { numberOfFlags: { count: newFlags, reportedBy: newReportedBy } });
+      }
+      onUpdate && onUpdate();
+    } catch (error) {
+      console.error('Error reporting post:', error);
     }
   };
 
@@ -108,7 +134,7 @@ const PostCard = ({ post, onUpdate }) => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem className="text-destructive">
+              <DropdownMenuItem className="text-destructive" onClick={handleReport}>
                 <Flag className="mr-2 h-4 w-4" />
                 Report Post
               </DropdownMenuItem>
