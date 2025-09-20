@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { useOnlineMentors } from '../contexts/OnlineMentorsContext';
+import { useFirebaseChat } from '../contexts/FirebaseChatContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -21,64 +21,27 @@ import {
 
 const Mentor = () => {
   const { user, logout } = useAuth();
-  const { setMentorOnline, setMentorOffline, updateMentorHeartbeat } = useOnlineMentors();
+  const { isConnected, setMentorOnline, setMentorOffline } = useFirebaseChat();
 
   // Set mentor as online when component mounts
   useEffect(() => {
-    if (user) {
-      const mentorData = {
-        email: user.email,
-        displayName: user.displayName,
-        photoURL: user.photoURL
-      };
-      
-      // Set as online
-      setMentorOnline(mentorData);
-
-      // Set up heartbeat to maintain online status
-      const heartbeatInterval = setInterval(() => {
-        updateMentorHeartbeat(user.email);
-      }, 60000); // Update every minute
-
-      // Cleanup function
-      return () => {
-        clearInterval(heartbeatInterval);
-        setMentorOffline(user.email);
-      };
+    if (user && isConnected && user.email?.includes('mentor')) {
+      setMentorOnline();
     }
-  }, [user, setMentorOnline, setMentorOffline, updateMentorHeartbeat]);
 
-  // Handle page visibility change to manage online status
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (user) {
-        if (document.hidden) {
-          // Page is hidden, but don't go offline immediately
-          console.log('Page hidden - maintaining online status');
-        } else {
-          // Page is visible, ensure we're online
-          const mentorData = {
-            email: user.email,
-            displayName: user.displayName,
-            photoURL: user.photoURL
-          };
-          setMentorOnline(mentorData);
-        }
+    // Set as offline when component unmounts
+    return () => {
+      if (user && user.email?.includes('mentor')) {
+        setMentorOffline();
       }
     };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [user, setMentorOnline]);
+  }, [user, isConnected, setMentorOnline, setMentorOffline]);
 
   const handleLogout = async () => {
     try {
       // Set as offline before logout
-      if (user) {
-        await setMentorOffline(user.email);
+      if (user && user.email?.includes('mentor')) {
+        setMentorOffline();
       }
       await logout();
     } catch (error) {
@@ -190,6 +153,88 @@ const Mentor = () => {
 
         {/* Feature Preview Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* Online Status Card */}
+          <Card className="border-blue-200 bg-gradient-to-r from-blue-50 to-green-50 col-span-1 md:col-span-2 lg:col-span-1">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  {isConnected ? (
+                    <Wifi className="h-5 w-5 text-green-600" />
+                  ) : (
+                    <WifiOff className="h-5 w-5 text-red-600" />
+                  )}
+                  <CardTitle className="text-lg">Connection Status</CardTitle>
+                </div>
+                <Badge 
+                  variant={isConnected ? "success" : "destructive"}
+                  className={isConnected ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}
+                >
+                  {isConnected ? "Connected" : "Disconnected"}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <p className="text-sm text-gray-600">
+                  {isConnected 
+                    ? "You are connected and available for real-time chat sessions."
+                    : "Connection lost. Attempting to reconnect..."
+                  }
+                </p>
+                <div className="flex space-x-2">
+                  <Button 
+                    size="sm" 
+                    onClick={setMentorOnline}
+                    disabled={!isConnected}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    Set Online
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={setMentorOffline}
+                    disabled={!isConnected}
+                  >
+                    Set Offline
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Session Management */}
+          <Card className="border-purple-200">
+            <CardHeader>
+              <div className="flex items-center space-x-2">
+                <MessageCircle className="h-5 w-5 text-purple-600" />
+                <CardTitle className="text-lg">Active Sessions</CardTitle>
+              </div>
+              <CardDescription>
+                Manage ongoing peer support conversations
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3 text-sm text-gray-600">
+                <div className="flex items-center justify-between">
+                  <span>Active chat sessions</span>
+                  <Badge variant="secondary">0</Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Pending requests</span>
+                  <Badge variant="secondary">0</Badge>
+                </div>
+                <Button 
+                  size="sm" 
+                  className="w-full mt-3 bg-purple-600 hover:bg-purple-700"
+                  onClick={() => window.location.href = '/chat'}
+                >
+                  Go to Chat Room
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Peer Management */}
           <Card className="border-blue-200">
             <CardHeader>

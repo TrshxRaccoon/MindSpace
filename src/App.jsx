@@ -1,6 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
-import { OnlineMentorsProvider } from './contexts/OnlineMentorsContext';
+import { FirebaseChatProvider } from './contexts/FirebaseChatContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import Home from './pages/Home';
@@ -14,7 +14,7 @@ import './App.css'
 function App() {
   return (
     <AuthProvider>
-      <OnlineMentorsProvider>
+      <FirebaseChatProvider>
         <Router>
           <div className="app">
           <Routes>
@@ -76,7 +76,7 @@ function App() {
           </Routes>
         </div>
       </Router>
-      </OnlineMentorsProvider>
+      </FirebaseChatProvider>
     </AuthProvider>
   )
 }
