@@ -11,11 +11,14 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [userType, setUserType] = useState('peer'); // 'peer' or 'mentor'
+  const [adminLoading, setAdminLoading] = useState(false);
   const [loginResult, setLoginResult] = useState(null);
   const [detectedUserType, setDetectedUserType] = useState(null);
+  const [isAdminLogin, setIsAdminLogin] = useState(false);
   
   const { 
-    signInWithGoogleSmart, 
+    signInWithGoogleSmart,
+    signInWithGoogle, 
     user, 
     loading: authLoading 
   } = useAuth();
@@ -25,7 +28,7 @@ const Login = () => {
   const from = location.state?.from?.pathname || '/';
 
   useEffect(() => {
-    if (user && !authLoading) {
+    if (user && !authLoading && !isAdminLogin) {
       console.log('User authenticated, checking login result:', loginResult);
       
       // If we have loginResult from smart Google login, use that for routing
@@ -48,7 +51,7 @@ const Login = () => {
         }
       }
     }
-  }, [user, authLoading, navigate, from, userType, loginResult]);
+  }, [user, authLoading, navigate, from, userType, loginResult, isAdminLogin]);
 
   const handleSmartGoogleLogin = async () => {
     try {
@@ -72,6 +75,84 @@ const Login = () => {
       console.error('Smart Google login error:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAdminLogin = async () => {
+    try {
+      setError('');
+      setAdminLoading(true);
+      setIsAdminLogin(true); // Set flag to prevent useEffect navigation
+      
+      // First authenticate with Google
+      console.log('🚀 Starting Google authentication...');
+      const user = await signInWithGoogle();
+      console.log('📋 Google auth response (user):', user);
+      
+      if (!user) {
+        throw new Error('Google authentication failed - no user data received');
+      }
+      
+      const userEmail = user.email;
+      console.log('🔐 Admin Login Attempt - User Email:', userEmail);
+      
+      if (!userEmail) {
+        throw new Error('No email found in user profile');
+      }
+      
+      // Check if user is admin by checking if document with email as ID exists
+      const { doc, getDoc, collection, getDocs } = await import('firebase/firestore');
+      const { db } = await import('../firebase-init');
+      
+      // First, let's get all admins to see the structure
+      console.log('📋 Fetching all admin documents...');
+      const adminsCollectionRef = collection(db, 'admins');
+      const allAdminsSnapshot = await getDocs(adminsCollectionRef);
+      
+      console.log('📊 All Admin Documents:');
+      console.log('- Total admin documents found:', allAdminsSnapshot.size);
+      allAdminsSnapshot.forEach((adminDoc) => {
+        console.log(`- Document ID: "${adminDoc.id}"`);
+        console.log(`- Document Data:`, adminDoc.data());
+        console.log(`- Document exists:`, adminDoc.exists());
+      });
+      
+      // Now check for the specific user
+      console.log(`🔍 Looking for specific admin document with ID: "${userEmail}"`);
+      const adminDocRef = doc(db, 'admins', userEmail);
+      const adminSnapshot = await getDoc(adminDocRef);
+      
+      console.log('🎯 Specific Admin Document Check:');
+      console.log('- Document exists:', adminSnapshot.exists());
+      console.log('- Document ID:', adminSnapshot.id);
+      console.log('- Document data:', adminSnapshot.data());
+      
+      if (!adminSnapshot.exists()) {
+        console.log('❌ Admin check failed - User is not authorized');
+        // User is not an admin
+        setError('You are not authorized to access the admin panel.');
+        // Sign out the user since they're not an admin
+        const { signOut } = await import('firebase/auth');
+        const { auth } = await import('../firebase-init');
+        await signOut(auth);
+        setIsAdminLogin(false); // Reset flag
+        return;
+      }
+      
+      console.log('✅ Admin check passed - Navigating to admin panel');
+      // User is admin, navigate to admin panel
+      navigate('/admin', { replace: true });
+      
+    } catch (error) {
+      console.log('❌ Admin login error occurred:', error);
+      console.log('Error message:', error.message);
+      console.log('Error code:', error.code);
+      setError('Failed to authenticate as admin. Please try again.');
+      console.error('Admin login error:', error);
+      setIsAdminLogin(false); // Reset flag on error
+    } finally {
+      console.log('🏁 Admin login process completed');
+      setAdminLoading(false);
     }
   };
 
@@ -264,6 +345,38 @@ const Login = () => {
             </a>
             .
           </p>
+          
+          {/* Admin Login Section */}
+          <div className="mt-8 pt-6 border-t border-gray-200">
+            <div className="text-center space-y-4">
+              <p className="text-sm text-gray-500">Administrative Access</p>
+              
+              {error && !userType && (
+                <div className="bg-red-50 border border-red-200 text-red-600 text-sm p-3 rounded-md">
+                  {error}
+                </div>
+              )}
+              
+              <Button 
+                onClick={handleAdminLogin}
+                disabled={adminLoading}
+                variant="outline"
+                className="w-full border-gray-300 hover:bg-gray-50"
+              >
+                {adminLoading ? (
+                  <div className="flex items-center space-x-2">
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-400 border-t-transparent"></div>
+                    <span>Verifying Admin Access...</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center space-x-2">
+                    <Shield className="h-4 w-4 text-gray-600" />
+                    <span>Login as Admin</span>
+                  </div>
+                )}
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

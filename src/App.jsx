@@ -9,6 +9,7 @@ import Posts from './pages/Posts';
 import Journal from './pages/Journal';
 import Wellness from './pages/Wellness';
 import Mentor from './pages/Mentor';
+import Admin from './pages/Admin';
 import './App.css'
 
 function App() {
@@ -67,6 +68,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Mentor />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin" 
+              element={
+                <ProtectedRoute>
+                  <Admin />
                 </ProtectedRoute>
               } 
             />
