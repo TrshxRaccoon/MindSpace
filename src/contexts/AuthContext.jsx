@@ -16,6 +16,7 @@ export const useAuth = () => {
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const generateRandomUsername = () => {
@@ -25,6 +26,24 @@ export const AuthProvider = ({ children }) => {
       length: 2,
       style: 'lowerCase'
     });
+  };
+
+  const fetchUserData = async (email) => {
+    if (!email) return null;
+    
+    try {
+      const userDocRef = doc(db, 'users', email);
+      const userDoc = await getDoc(userDocRef);
+      
+      if (userDoc.exists()) {
+        const data = userDoc.data();
+        setUserData(data);
+        return data;
+      }
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+    }
+    return null;
   };
 
   const createUserInFirestore = async (userAuth) => {
@@ -43,7 +62,8 @@ export const AuthProvider = ({ children }) => {
           displayName: userAuth.displayName,
           photoURL: userAuth.photoURL,
           createdAt: new Date().toISOString(),
-          lastLoginAt: new Date().toISOString()
+          lastLoginAt: new Date().toISOString(),
+          journal: [] // Initialize empty journal array
         });
       } catch (error) {
         console.error('Error creating user document:', error);
@@ -80,6 +100,9 @@ export const AuthProvider = ({ children }) => {
       setUser(user);
       if (user) {
         await createUserInFirestore(user);
+        await fetchUserData(user.email);
+      } else {
+        setUserData(null);
       }
       setLoading(false);
     });
@@ -89,9 +112,11 @@ export const AuthProvider = ({ children }) => {
 
   const value = {
     user,
+    userData,
     loading,
     signInWithGoogle,
-    logout
+    logout,
+    fetchUserData
   };
 
   return (
