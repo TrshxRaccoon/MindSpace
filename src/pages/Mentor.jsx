@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useOnlineMentors } from '../contexts/OnlineMentorsContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,14 +14,72 @@ import {
   Brain,
   Shield,
   Settings,
-  LogOut
+  LogOut,
+  Wifi,
+  WifiOff
 } from 'lucide-react';
 
 const Mentor = () => {
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
+  const { setMentorOnline, setMentorOffline, updateMentorHeartbeat } = useOnlineMentors();
+
+  // Set mentor as online when component mounts
+  useEffect(() => {
+    if (user) {
+      const mentorData = {
+        email: user.email,
+        displayName: user.displayName,
+        photoURL: user.photoURL
+      };
+      
+      // Set as online
+      setMentorOnline(mentorData);
+
+      // Set up heartbeat to maintain online status
+      const heartbeatInterval = setInterval(() => {
+        updateMentorHeartbeat(user.email);
+      }, 60000); // Update every minute
+
+      // Cleanup function
+      return () => {
+        clearInterval(heartbeatInterval);
+        setMentorOffline(user.email);
+      };
+    }
+  }, [user, setMentorOnline, setMentorOffline, updateMentorHeartbeat]);
+
+  // Handle page visibility change to manage online status
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (user) {
+        if (document.hidden) {
+          // Page is hidden, but don't go offline immediately
+          console.log('Page hidden - maintaining online status');
+        } else {
+          // Page is visible, ensure we're online
+          const mentorData = {
+            email: user.email,
+            displayName: user.displayName,
+            photoURL: user.photoURL
+          };
+          setMentorOnline(mentorData);
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [user, setMentorOnline]);
 
   const handleLogout = async () => {
     try {
+      // Set as offline before logout
+      if (user) {
+        await setMentorOffline(user.email);
+      }
       await logout();
     } catch (error) {
       console.error('Logout error:', error);
@@ -46,6 +105,12 @@ const Mentor = () => {
               <Badge className="bg-purple-100 text-purple-700 border-purple-300">
                 Mentor Mode
               </Badge>
+              <div className="flex items-center space-x-2">
+                <Wifi className="h-4 w-4 text-green-500" />
+                <span className="text-xs text-green-600 font-medium">
+                  Online & Available
+                </span>
+              </div>
               <Button variant="outline" onClick={handleLogout} className="flex items-center space-x-2">
                 <LogOut className="h-4 w-4" />
                 <span>Logout</span>
@@ -57,6 +122,45 @@ const Mentor = () => {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Debug Section */}
+        <div className="mb-6">
+          <Card className="border-yellow-200 bg-yellow-50">
+            <CardContent className="p-4">
+              <h3 className="font-medium text-sm mb-2">🔧 Debug - Online Status Test</h3>
+              <div className="flex items-center space-x-4">
+                <Button 
+                  onClick={() => {
+                    const mentorData = {
+                      email: user?.email,
+                      displayName: user?.displayName,
+                      photoURL: user?.photoURL
+                    };
+                    console.log('Manual test - setting mentor online:', mentorData);
+                    setMentorOnline(mentorData);
+                  }}
+                  size="sm"
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  Test Set Online
+                </Button>
+                <Button 
+                  onClick={() => {
+                    console.log('Manual test - setting mentor offline:', user?.email);
+                    setMentorOffline(user?.email);
+                  }}
+                  size="sm"
+                  variant="destructive"
+                >
+                  Test Set Offline
+                </Button>
+                <div className="text-xs text-gray-600">
+                  Check console for logs
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         {/* Coming Soon Banner */}
         <div className="mb-8">
           <Card className="border-purple-200 bg-gradient-to-r from-purple-50 to-indigo-50">
